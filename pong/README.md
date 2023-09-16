@@ -1,0 +1,1 @@
+Barebone version of Pong game implemented with SDL2.
