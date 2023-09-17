@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
+	"ipmanlk/bettercopelk/download"
 	"ipmanlk/bettercopelk/models"
 	"ipmanlk/bettercopelk/search"
 	"log"
@@ -10,6 +12,11 @@ import (
 )
 
 func HandleSearch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	// Get the query from the URL query string
 	query := strings.TrimSpace(r.URL.Query().Get("query"))
 
@@ -55,4 +62,44 @@ func HandleSearch(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Error writing SSE end message:", err)
 	}
+}
+
+func HandleDownload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	link := strings.TrimSpace(r.URL.Query().Get("link"))
+	source := strings.TrimSpace(r.URL.Query().Get("source"))
+
+	if link == "" {
+		http.Error(w, "Missing link", http.StatusBadRequest)
+		return
+	}
+
+	if source == "" {
+		http.Error(w, "Missing source", http.StatusBadRequest)
+		return
+	}
+
+	data, err := download.GetSubtitle(link, source)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Failed to download subtitle", http.StatusInternalServerError)
+		return
+	}
+
+	// Set response headers
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, data.Filename))
+
+	// Write the file content to the response writer
+	_, err = w.Write(data.Content)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+		return
+	}
+
 }
